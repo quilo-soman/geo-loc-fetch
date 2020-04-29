@@ -27,10 +27,10 @@ let traverseJsonList = async (list) => {
     console.log(`Processing data for ${provinceState}`);
     try{
       let dataFromGithub = await getDataFromGithub(GITHUB_BASE_URL,provinceState);
-      let provinceDetails = await addLocationData(dataFromGithub);
+      let provinceDetails = await addLocationData(dataFromGithub, provinceState);
       writeToFile(provinceDetails,provinceState);
     }catch(err){
-      console.log(`Can't get data for ${provinceState}. ${err.message}`);
+      logErr(`Can't get data for '${provinceState}'; ${err.message}`);
     }
   };
 };
@@ -88,12 +88,12 @@ let getLocationInfo = (baseUrl, param) => {
 };
 
 // Add Location data to github data
-let addLocationData = (dataFromGithub) => {
+let addLocationData = (dataFromGithub, provinceState) => {
   let newProvinceList = [];
   let getAllLocations = async () => {
     for(let i=0; i<dataFromGithub.length; i++){
       try{
-        if(dataFromGithub[i].physical_address[0] && dataFromGithub[i].physical_address[0].postal_code){
+        if(dataFromGithub[i].physical_address && dataFromGithub[i].physical_address[0] && dataFromGithub[i].physical_address[0].postal_code){
           let param = {
             key: GOOGLE_API_KEY,
             address: dataFromGithub[i].physical_address[0].postal_code
@@ -102,11 +102,11 @@ let addLocationData = (dataFromGithub) => {
           dataFromGithub[i]["location"] = dataFromGoogle;
           newProvinceList.push(dataFromGithub[i]);
         } else{
-          // TODO: Log error to file
-          console.error('Physical address not found.');
+          let organizationName = dataFromGithub[i].name ? dataFromGithub[i].name : 'Unknown';
+          logErr(`Physical address not found for organization '${organizationName}' in ${provinceState}`);
         }
       }catch(err){
-        console.log(`Error in getting location details: ${err}`)
+        logErr(`Error in getting location details for '${provinceState}'; ${err}`);
         return null;
       }
     };
@@ -126,7 +126,8 @@ let addLocationData = (dataFromGithub) => {
 let writeToFile = (jsonData, fileName) => {
   let folderPath = DEST_FOLDER;
   let filePath = `${folderPath}/${fileName}.JSON`;
-    if(jsonData===null){
+
+    if(jsonData===null || jsonData.length === 0){
       console.log(`No Data found for ${fileName}.`)
       return;
     }
@@ -150,9 +151,27 @@ let writeToFile = (jsonData, fileName) => {
       });
       console.log(`Data for ${fileName} saved to file.`);
     } catch (err) {
-      console.error(err)
+      logErr(err)
     }
 }
 
 // Start Method to process all the data one by one
 traverseJsonList(list);
+
+// Error Log to file
+let logErr = (message) => {
+  let d = new Date();
+  let logMessage = {
+    message,
+    utcTime: d.toUTCString(),
+    localTime: d.toLocaleString()
+  }
+  let filePath = `${__dirname}/error.log`;
+  fs.appendFile(filePath, `${JSON.stringify(logMessage)},\r\n`, (err) => {
+    if (err) {
+      console.log(`Error in writing error log to file. ${err.message}\n`);
+      return;
+    };
+    console.log(message);
+  });
+}
