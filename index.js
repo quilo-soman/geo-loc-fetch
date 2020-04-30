@@ -51,7 +51,11 @@ let getDataFromGithub = (baseUrl, param) => {
         organization_id: element.organization_id,
         name: element.name,
         alternate_name: element.alternate_name,
-        physical_address: element.physical_address
+        physical_address: element.physical_address,
+        phones: element.phones,
+        regular_schedule: element.regular_schedule,
+        description: element.description,
+        transportation: element.transportation
       }
       organizationArray.push(organisation);
     });
